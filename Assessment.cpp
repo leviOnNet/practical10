@@ -223,13 +223,27 @@ char** marksHistogram(Assessment* assessment) {
     return grid;
 }
 
-void loadFromCSV(Assessment* assessment, std::string fileName) {
+void loadFromCSV(Assessment* assessment, const std::string& fileName) {
     std::ifstream file(fileName.c_str());
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << fileName << std::endl;
+        return;
+    }
+
     std::string line;
+
+    // Skip header line (assuming it exists)
+    std::getline(file, line); 
+
     while (std::getline(file, line)) {
-        StudentDetails* student = constructor(line);
-        insertStudent(assessment, *student);
-        // Do NOT call destructor(student) here!
-        // The roster now owns the student pointer.
+        if (line.empty()) continue; // skip blank lines
+
+        StudentDetails* student = constructor(line); // assuming constructor(line) is well defined
+        if (student != nullptr) {
+            insertStudent(assessment, *student);
+            // Do not delete student here; insertStudent owns it
+        } else {
+            std::cerr << "Skipping invalid line: " << line << std::endl;
+        }
     }
 }
