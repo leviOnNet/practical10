@@ -1,5 +1,7 @@
 #include "Assessment.h"
 #include "StudentDetails.h"
+
+
 // Comparison function for sort
 bool compareStudents(StudentDetails* a, StudentDetails* b) {
     return a->lastName < b->lastName;
@@ -230,25 +232,41 @@ char** marksHistogram(Assessment* assessment) {
 
 void loadFromCSV(Assessment* assessment, std::string fileName) {
     std::ifstream file(fileName.c_str());
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << fileName << std::endl;
-        return;
-    }
-
     std::string line;
 
-    // Skip header line (assuming it exists)
-    std::getline(file, line); 
+    // Skip the header line
+    std::getline(file, line);
 
     while (std::getline(file, line)) {
-        if (line.empty()) continue; // skip blank lines
+        std::stringstream ss(line);
+        std::string firstName, lastName, studentNumberStr, markStr, didPrepStr;
 
-        StudentDetails* student = constructor(line); // assuming constructor(line) is well defined
-        if (student != NULL) {
-            insertStudent(assessment, *student);
-            // Do not delete student here; insertStudent owns it
-        } else {
-            std::cerr << "Skipping invalid line: " << line << std::endl;
-        }
+        std::getline(ss, firstName, ',');
+        std::getline(ss, lastName, ',');
+        std::getline(ss, studentNumberStr, ',');
+        std::getline(ss, markStr, ',');
+        std::getline(ss, didPrepStr, ',');
+
+        int studentNumber;
+        float mark;
+
+        std::stringstream ssNum(studentNumberStr);
+        ssNum >> studentNumber;
+
+        std::stringstream ssMark(markStr);
+        ssMark >> mark;
+
+        bool didPrep = (didPrepStr == "t");
+
+        StudentDetails* student = constructor(
+            firstName,
+            lastName,
+            studentNumber,
+            mark,
+            didPrep
+        );
+
+        insertStudent(assessment, *student);
+        // Do not delete student — roster owns the pointer.
     }
 }
