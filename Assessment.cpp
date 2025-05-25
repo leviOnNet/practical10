@@ -1,7 +1,5 @@
 #include "Assessment.h"
 #include "StudentDetails.h"
-
-
 // Comparison function for sort
 bool compareStudents(StudentDetails* a, StudentDetails* b) {
     return a->lastName < b->lastName;
@@ -93,14 +91,20 @@ void sort(Assessment* assessment) {
 float avg(Assessment* assessment) {
     float total = 0;
     int count = 0;
+
     for (int i = 0; i < 26; ++i) {
-        for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
-            total += assessment->roster[i][j]->mark;
-            count++;
+        int studentsInBucket = assessment->numberOfStudents[i]; // not a pointer!
+        for (int j = 0; j < studentsInBucket; ++j) {
+            if (assessment->roster[i][j] != NULL) {
+                total += assessment->roster[i][j]->mark;
+                count++;
+            }
         }
     }
-    return (count == 0) ? 0 : (total / count);
+
+    return (count == 0) ? 0.0f : (total / count);
 }
+
 
 int totalNumberOfStudents(Assessment* assessment) {
     int total = 0;
@@ -152,7 +156,6 @@ float passRate(Assessment* assessment) {
 
     return (passed * 100.0f) / total;
 }
-
 
 int distinction(Assessment* assessment) {
     int count = 0;
@@ -223,7 +226,9 @@ char** marksHistogram(Assessment* assessment) {
     return grid;
 }
 
-void loadFromCSV(Assessment* assessment, const std::string& fileName) {
+
+
+void loadFromCSV(Assessment* assessment, std::string fileName) {
     std::ifstream file(fileName.c_str());
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << fileName << std::endl;
@@ -239,7 +244,7 @@ void loadFromCSV(Assessment* assessment, const std::string& fileName) {
         if (line.empty()) continue; // skip blank lines
 
         StudentDetails* student = constructor(line); // assuming constructor(line) is well defined
-        if (student != nullptr) {
+        if (student != NULL) {
             insertStudent(assessment, *student);
             // Do not delete student here; insertStudent owns it
         } else {
