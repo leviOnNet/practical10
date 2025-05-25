@@ -24,10 +24,11 @@ StudentDetails* constructor(std::string line) {
     ssMark >> mark;
 
     getline(ss, token, ',');
-    didPrepWork = (token == "true" || token == "1");
+    didPrepWork = (token == "t");  //fixed to match your CSV format
 
     return constructor(fName, lName, studentNumber, mark, didPrepWork);
 }
+
 
 // Constructor from individual fields
 StudentDetails* constructor(std::string fName, std::string lName, int studentNumber, float mark, bool didPrepWork) {
