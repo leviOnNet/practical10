@@ -1,8 +1,12 @@
 #include "Assessment.h"
 #include "StudentDetails.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cctype> // Only needed if allowed for toupper
 
-
-// Comparison function for sort
+// Helper for sorting
 bool compareStudents(StudentDetails* a, StudentDetails* b) {
     return a->lastName < b->lastName;
 }
@@ -13,21 +17,25 @@ Assessment* constructor(std::string assessmentName, float fullMarks) {
     a->fullMarks = fullMarks;
     a->roster = new StudentDetails**[26];
     a->numberOfStudents = new int[26];
+
     for (int i = 0; i < 26; ++i) {
         a->roster[i] = NULL;
         a->numberOfStudents[i] = 0;
     }
+
     return a;
 }
 
 void destructor(Assessment*& assessment) {
-    if (!assessment) return;
+    if (assessment == NULL) return;
+
     for (int i = 0; i < 26; ++i) {
         for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
             destructor(assessment->roster[i][j]);
         }
         delete[] assessment->roster[i];
     }
+
     delete[] assessment->roster;
     delete[] assessment->numberOfStudents;
     delete assessment;
@@ -35,25 +43,23 @@ void destructor(Assessment*& assessment) {
 }
 
 void insertStudent(Assessment*& assessment, StudentDetails newStudent) {
-    // Get bucket index based on the first letter of last name
-    char firstChar = std::toupper(newStudent.lastName[0]);
-    int index = firstChar - 'A';
+    char firstChar = newStudent.lastName[0];
+    if (firstChar >= 'a' && firstChar <= 'z') {
+        firstChar = firstChar - ('a' - 'A');
+    }
 
-    // Safety check
+    int index = firstChar - 'A';
     if (index < 0 || index >= 26) return;
 
     int oldSize = assessment->numberOfStudents[index];
     int newSize = oldSize + 1;
 
-    // Allocate new array for the bucket
     StudentDetails** newBucket = new StudentDetails*[newSize];
 
-    // Copy existing student pointers
     for (int i = 0; i < oldSize; ++i) {
         newBucket[i] = assessment->roster[index][i];
     }
 
-    // Deep copy the new student
     newBucket[oldSize] = constructor(
         newStudent.firstName,
         newStudent.lastName,
@@ -62,16 +68,10 @@ void insertStudent(Assessment*& assessment, StudentDetails newStudent) {
         newStudent.didPrepWork
     );
 
-    // Delete old bucket
     delete[] assessment->roster[index];
-
-    // Assign updated bucket
     assessment->roster[index] = newBucket;
     assessment->numberOfStudents[index] = newSize;
 }
-
-
-
 
 void sort(Assessment* assessment) {
     for (int i = 0; i < 26; ++i) {
@@ -91,22 +91,18 @@ void sort(Assessment* assessment) {
 }
 
 float avg(Assessment* assessment) {
-    float total = 0;
+    float total = 0.0f;
     int count = 0;
 
     for (int i = 0; i < 26; ++i) {
-        int studentsInBucket = assessment->numberOfStudents[i]; // not a pointer!
-        for (int j = 0; j < studentsInBucket; ++j) {
-            if (assessment->roster[i][j] != NULL) {
-                total += assessment->roster[i][j]->mark;
-                count++;
-            }
+        for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
+            total += assessment->roster[i][j]->mark;
+            count++;
         }
     }
 
     return (count == 0) ? 0.0f : (total / count);
 }
-
 
 int totalNumberOfStudents(Assessment* assessment) {
     int total = 0;
@@ -129,11 +125,7 @@ int numberThatCompletedPrep(Assessment* assessment) {
 }
 
 float passRate(Assessment* assessment) {
-    // Validate input
-    if (assessment == NULL ||
-        assessment->roster == NULL ||
-        assessment->numberOfStudents == NULL ||
-        assessment->fullMarks == 0.0f) {
+    if (!assessment || !assessment->roster || !assessment->numberOfStudents || assessment->fullMarks <= 0.0f) {
         return 0.0f;
     }
 
@@ -142,26 +134,21 @@ float passRate(Assessment* assessment) {
     float passMark = assessment->fullMarks * 0.5f;
 
     for (int i = 0; i < 26; ++i) {
-        int count = assessment->numberOfStudents[i];
-        if (count > 0) {
-            for (int j = 0; j < count; ++j) {
-                StudentDetails* student = assessment->roster[i][j];
-                if (student != NULL && student->mark >= passMark) {
-                    passed++;
-                }
+        for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
+            total++;
+            if (assessment->roster[i][j]->mark >= passMark) {
+                passed++;
             }
-            total += count;
         }
     }
 
-    if (total == 0) return 0.0f;
-
-    return (passed * 100.0f) / total;
+    return (total == 0) ? 0.0f : (passed * 100.0f / total);
 }
 
 int distinction(Assessment* assessment) {
     int count = 0;
     float threshold = assessment->fullMarks * 0.75f;
+
     for (int i = 0; i < 26; ++i) {
         for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
             if (assessment->roster[i][j]->mark >= threshold) {
@@ -169,11 +156,13 @@ int distinction(Assessment* assessment) {
             }
         }
     }
+
     return count;
 }
 
 int fullMarks(Assessment* assessment) {
     int count = 0;
+
     for (int i = 0; i < 26; ++i) {
         for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
             if (assessment->roster[i][j]->mark == assessment->fullMarks) {
@@ -181,61 +170,96 @@ int fullMarks(Assessment* assessment) {
             }
         }
     }
+
     return count;
 }
 
 StudentDetails* bestStudent(Assessment* assessment) {
     StudentDetails* best = NULL;
+
     for (int i = 0; i < 26; ++i) {
         for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
-            if (best == NULL || assessment->roster[i][j]->mark > best->mark) {
+            if (!best || assessment->roster[i][j]->mark > best->mark) {
                 best = assessment->roster[i][j];
             }
         }
     }
+
     return best;
 }
 
 StudentDetails* worstStudent(Assessment* assessment) {
     StudentDetails* worst = NULL;
+
     for (int i = 0; i < 26; ++i) {
         for (int j = 0; j < assessment->numberOfStudents[i]; ++j) {
-            if (worst == NULL || assessment->roster[i][j]->mark < worst->mark) {
+            if (!worst || assessment->roster[i][j]->mark < worst->mark) {
                 worst = assessment->roster[i][j];
             }
         }
     }
+
     return worst;
 }
 
 char** marksHistogram(Assessment* assessment) {
+    // Validation check
+    if (!assessment || !assessment->roster || !assessment->numberOfStudents || assessment->fullMarks <= 0.0f) {
+        char** invalidGrid = new char*[1];
+        invalidGrid[0] = new char[27];
+        for (int i = 0; i < 26; ++i) {
+            invalidGrid[0][i] = 'A' + i;
+        }
+        invalidGrid[0][26] = '\0'; // null-terminate
+        return invalidGrid;
+    }
+
+    // Create 11x26 grid
     char** grid = new char*[11];
     for (int i = 0; i < 11; ++i) {
-        grid[i] = new char[26];
+        grid[i] = new char[27];
         for (int j = 0; j < 26; ++j) {
             grid[i][j] = ' ';
         }
+        grid[i][26] = '\0'; // null-terminate each row
     }
 
+    // Last row = A-Z labels
     for (int col = 0; col < 26; ++col) {
-        for (int row = 0; row < assessment->numberOfStudents[col]; ++row) {
-            float mark = assessment->roster[col][row]->mark;
-            int band = (int)((mark / assessment->fullMarks) * 10.0f);
-            if (band > 10) band = 10;
-            grid[band][col] = '*';
+        grid[10][col] = 'A' + col;
+    }
+
+    // Compute average mark per bucket and plot 'X'
+    for (int col = 0; col < 26; ++col) {
+        int count = assessment->numberOfStudents[col];
+        float total = 0.0f;
+
+        for (int j = 0; j < count; ++j) {
+            total += assessment->roster[col][j]->mark;
+        }
+
+        if (count > 0) {
+            float avg = total / count;
+            int row = static_cast<int>((avg / assessment->fullMarks) * 10.0f);
+            if (row > 9) row = 9; // avoid exceeding bounds
+
+            // Fill from row 0 up to computed row (inclusive) with 'X'
+            for (int r = 9 - row; r < 10; ++r) {
+                grid[r][col] = 'X';
+            }
         }
     }
+
     return grid;
 }
 
 
-
 void loadFromCSV(Assessment* assessment, std::string fileName) {
     std::ifstream file(fileName.c_str());
-    std::string line;
+    if (!file.is_open()) return;
 
-    // Skip the header line
-    std::getline(file, line);
+    std::string line;
+    std::getline(file, line); // skip header
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -247,8 +271,8 @@ void loadFromCSV(Assessment* assessment, std::string fileName) {
         std::getline(ss, markStr, ',');
         std::getline(ss, didPrepStr, ',');
 
-        int studentNumber;
-        float mark;
+        int studentNumber = 0;
+        float mark = 0.0f;
 
         std::stringstream ssNum(studentNumberStr);
         ssNum >> studentNumber;
@@ -258,15 +282,10 @@ void loadFromCSV(Assessment* assessment, std::string fileName) {
 
         bool didPrep = (didPrepStr == "t");
 
-        StudentDetails* student = constructor(
-            firstName,
-            lastName,
-            studentNumber,
-            mark,
-            didPrep
-        );
-
+        StudentDetails* student = constructor(firstName, lastName, studentNumber, mark, didPrep);
         insertStudent(assessment, *student);
-        // Do not delete student — roster owns the pointer.
+        destructor(student); // free temporary instance
     }
+
+    file.close();
 }
